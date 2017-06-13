@@ -15,7 +15,7 @@
 % get_moves(Moves, [silver, []], [[0,0,rabbit,silver],[0,1,rabbit,silver],[0,2,horse,silver],[0,3,rabbit,silver],[0,4,elephant,silver],[0,5,rabbit,silver],[0,6,rabbit,silver],[0,7,rabbit,silver],[1,0,camel,silver],[1,1,cat,silver],[1,2,rabbit,silver],[1,3,dog,silver],[1,4,rabbit,silver],[1,5,horse,silver],[1,6,dog,silver],[1,7,cat,silver],[2,7,rabbit,gold],[6,0,cat,gold],[6,1,horse,gold],[6,2,camel,gold],[6,3,elephant,gold],[6,4,rabbit,gold],[6,5,dog,gold],[6,6,rabbit,gold],[7,0,rabbit,gold],[7,1,rabbit,gold],[7,2,rabbit,gold],[7,3,cat,gold],[7,4,dog,gold],[7,5,rabbit,gold],[7,6,horse,gold],[7,7,rabbit,gold]]).
 
 % default call
-get_moves(Moves, Gamestate, Board):- play(Board, [],Moves,0).
+get_moves(Moves, Gamestate, Board):- play(Board, [],Moves,0),!.
 
 force(rabbit,1).
 force(cat,2).
@@ -51,8 +51,14 @@ getColor([X,Y,_,C],[_|Q]):- getColor([X,Y,_,C], Q).
 getAnimal([X,Y,A,_],[[X,Y,A,C]|Q]).
 getAnimal([X,Y,A,_],[_|Q]):- getAnimal([X,Y,A,_], Q).
 
+isTrap([2,2]).
+isTrap([2,5]).
+isTrap([5,2]).
+isTrap([5,5]).
+
 valid_move([[ORow, OCol],[NRow, NCol]], Moves, Board):- testPiece(ORow,OCol,A,silver, Board),
 					near([ORow, OCol],[NRow, NCol]),
+					\+isTrap([NRow,NCol]),
 					\+testExistence([NRow,NCol], Board),
 					\+is_frozen([ORow,OCol,A,silver],Board),
 					\+rabbitBackward([[ORow,OCol],[NRow,NCol]],Board),
@@ -90,6 +96,7 @@ member(X,[_|Reste]) :- member(X,Reste).
 long([], N). 
 long([_|Q], N) :- long(Q, N1), N is N1 + 1. 
 
+%AJOUTE UN MOUVE A LA LISTE%
 add_move(NbCoups,NewNbCoups,Moves,NewMove, Board, NBoard):- getAllMoves(_,Moves,ListMove, Board),
 														choose_move(ListMove,NewMove,Board),
 														NewNbCoups is NbCoups + 1,
@@ -135,23 +142,67 @@ is_different_board(Board,NBoard).
 rabbitBackward([[X1,Y1],[X2,Y2]],Board):- up([X1,Y1],[X2,Y2]),
 							testAnimal(X1,Y1,rabbit,Board).
 
+%CHOIX MOUVEMENT%
 choose_move(Moves,[[X,Y],[U,V]],Board):- calculate_all_score(Moves, ScoredMoves, Board),
 										get_best_score(ScoredMoves, [[[X,Y],[U,V]],M]).
 				
 
-
+score_move([[X,Y],[U,V]], Score, Board):- testColor(X,Y, silver, Board),
+										testAnimal(X,Y,rabbit,Board),
+										down([X,Y],[U,V]), U=7,
+										Score is 20.
 score_move([[X,Y],[U,V]], Score, Board):- testColor(X,Y, silver, Board),
 										testAnimal(X,Y,rabbit,Board),
 										down([X,Y],[U,V]),
-										Score is 10.
+										Score is 9.
+score_move([[X,Y],[U,V]], Score, Board):- testColor(X,Y,silver, Board),
+										testAnimal(X,Y,elephant, Board),
+										U>1, U<5, V>2, V<6, U>X,
+										Score is 8.
+score_move([[X,Y],[U,V]], Score, Board):- testColor(X,Y,silver, Board),
+										testAnimal(X,Y,elephant, Board),
+										U<5, V>3, V<6, U>X,
+										Score is 8.
+score_move([[X,Y],[U,V]], Score,Board):- testColor(X,Y,silver,Board),
+										testAnimal(X,Y,camel,Board),
+										U<6, V<3, U>X,
+										Score is 7.
+score_move([[X,Y],[U,V]], Score,Board):- testColor(X,Y,silver,Board),
+										testAnimal(X,Y,horse,Board),
+										U<5, V<3, U>X,
+										Score is 5.
+score_move([[X,Y],[U,V]], Score,Board):- testColor(X,Y,silver,Board),
+										testAnimal(X,Y,camel,Board),
+										U<5, V<5, U>X,
+										Score is 7.
+score_move([[X,Y],[U,V]], Score,Board):- testColor(X,Y,silver,Board),
+										testAnimal(X,Y,horse,Board),
+										U<5, V<5, U>X,
+										Score is 5.
+score_move([[X,Y],[U,V]], Score,Board):- testColor(X,Y,silver,Board),
+										testAnimal(X,Y,dog,Board),
+										U<5, V<5, U>X,
+										Score is 4.	
+score_move([[X,Y],[U,V]], Score,Board):- testColor(X,Y,silver,Board),
+					testAnimal(X,Y,dog,Board),
+					U<5, V<5, U>X,
+					Score is 4.
+score_move([[X,Y],[U,V]], Score,Board):- testColor(X,Y,silver,Board),
+					testAnimal(X,Y,cat,Board),
+					U<5, V<5, U>X,
+					Score is 3.	
+score_move([[X,Y],[U,V]], Score,Board):- testColor(X,Y,silver,Board),
+					testAnimal(X,Y,cat,Board),
+					U<5, V<5, U>X,
+					Score is 3.					
 score_move([[X,Y],[U,V]], 0, _).
 
 calculate_score_move([[X,Y],[U,V]], [[[X,Y],[U,V]],Score], Board):- score_move([[X,Y],[U,V]],Score,Board).
 
 calculate_all_score([], ScoredMoves, _).
 calculate_all_score([T|Q], ScoredMoves, Board):- calculate_score_move(T,CurrentScoreMove, Board),
-												calculate_all_score(Q,ScoreMove,Board),
-												concat([CurrentScoreMove],ScoreMove,ScoredMoves). 
+						calculate_all_score(Q,ScoreMove,Board),
+						concat([CurrentScoreMove],ScoreMove,ScoredMoves). 
 
 my_max([], R, R). %end
 my_max([X|Xs], WK, R):- X >  WK, my_max(Xs, X, R). %WK is Carry about
